@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Valoración de puestos de trabajo</title>
+<style>
+:root{--bg:#f4f4f8;--card:#fff;--tx:#1f2430;--mut:#6b7280;--bd:#dfe2ea;--pri:#3f9fb5;--pri2:#2f7e91;--ok:#2e8b57;--warn:#c0392b;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171a21;--card:#20242d;--tx:#e8eaf0;--mut:#9aa3b2;--bd:#343a46;--pri:#4fb3c9;--pri2:#3b94a8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171a21;--card:#20242d;--tx:#e8eaf0;--mut:#9aa3b2;--bd:#343a46;--pri:#4fb3c9;--pri2:#3b94a8;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.bc{color:var(--mut);margin-bottom:14px;font-size:13px}.bc b{color:var(--tx)}.bc a{cursor:pointer}
+h1{font-size:20px;margin:0 0 12px}
+label{display:block;font-weight:600;font-size:12px;margin-bottom:3px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);font:inherit}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}.row>div{flex:1 1 150px}
+.row .sm{flex:0 0 80px}
+button{padding:8px 14px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);cursor:pointer;font:inherit}
+button.p{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}button.p:hover{background:var(--pri2)}
+button.d{color:var(--warn)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--bd);margin-bottom:0}
+.tab{padding:8px 12px;background:var(--card);border:0;border-radius:6px 6px 0 0;cursor:pointer;color:var(--tx)}
+.tab.on{background:var(--pri);color:#fff;font-weight:600}
+.panel{background:var(--card);border:1px solid var(--bd);border-top:0;padding:16px;border-radius:0 0 8px 8px;overflow-x:auto}
+.sec{border:1px solid var(--bd);border-radius:6px;margin-bottom:14px}.sec>h3{margin:0;padding:10px 14px;font-size:14px;border-bottom:1px solid var(--bd)}.sec>div{padding:12px 14px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left}th{font-size:12px;color:var(--mut)}
+tr.link{cursor:pointer}tr.link:hover{background:var(--bg)}
+.bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}.bar input{max-width:280px}.sp{flex:1}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;background:var(--pri);color:#fff;font-weight:600;font-size:12px}
+.mut{color:var(--mut)}.ok{color:var(--ok)}
+.fac{display:grid;grid-template-columns:minmax(150px,1.2fr) 2fr 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd)}
+.fac small{color:var(--mut);display:block}
+.tot{font-size:26px;font-weight:700;color:var(--pri)}
+.foot{position:sticky;bottom:0;background:var(--bg);padding:10px 0;display:flex;gap:10px;align-items:center}
+.ro .panel input,.ro .panel select,.ro .panel textarea{pointer-events:none;opacity:.8}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="mut">Cargando…</p></div>
+<script>
+var FACTORES=[
+ {k:"conocimientos",n:"Conocimientos y formación",d:"Nivel de estudios y experiencia exigidos",w:25},
+ {k:"complejidad",n:"Complejidad y resolución de problemas",d:"Dificultad de las tareas y análisis requerido",w:20},
+ {k:"responsabilidad",n:"Responsabilidad e impacto",d:"Efecto de las decisiones en el negocio",w:25},
+ {k:"autonomia",n:"Autonomía y supervisión",d:"Libertad para decidir y personas a cargo",w:15},
+ {k:"relaciones",n:"Relaciones y comunicación",d:"Trato con clientes, equipos y terceros",w:10},
+ {k:"condiciones",n:"Condiciones de trabajo",d:"Esfuerzo, presión y entorno",w:5}];
+var NIVELES=["Básico","Intermedio","Avanzado","Experto"];
+var TABS=["Descripción","Valoración","Retribución","Conocimientos","Organigrama","Ediciones","Auditoría cambios"];
+var GRUPOS=[[0,30,"Grupo 5 · Apoyo"],[30,50,"Grupo 4 · Técnico"],[50,70,"Grupo 3 · Especialista"],[70,85,"Grupo 2 · Responsable"],[85,101,"Grupo 1 · Dirección"]];
+var st={db:null,uid:null,items:[],view:"list",id:null,draft:null,tab:0,q:"",anio:"",ro:false,saved:"",names:{}};
+var $=function(s){return document.querySelector(s)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function blank(y){var v={};FACTORES.forEach(function(f){v[f.k]=3});
+ return {anio:y||new Date().getFullYear(),nombre:"",codigo:"",razon:"",politica:"General",mision:"",funciones:"",val:v,valNota:"",retr:{grupo:"",base:"",variable:"",complementos:"",notas:""},conoc:[],org:{depende:"",supervisa:"",relaciona:""},audit:[]}}
+function puntos(v){var t=0;FACTORES.forEach(function(f){t+=((+v[f.k]||0)/5)*f.w});return Math.round(t*10)/10}
+function grupoDe(p){for(var i=0;i<GRUPOS.length;i++)if(p>=GRUPOS[i][0]&&p<GRUPOS[i][1])return GRUPOS[i][2];return ""}
+function num(n){return n===""||n==null?"—":Number(n).toLocaleString("es-ES")+" €"}
+
+function init(){
+ render();
+ var done=false;
+ setTimeout(function(){if(!done)$("#app").innerHTML='<p class="mut">No se han podido cargar los datos compartidos. Abre la página desde el enlace del artefacto con tu cuenta.</p>'},10000);
+ Promise.all([claude.use("db"),claude.use("user")]).then(function(r){
+  var db=r[0],u=r[1];
+  if(!db){return}
+  st.db=db;done=true;
+  if(u&&u.id)u.id().then(function(i){st.uid=i});
+  st.user=u;
+  db.collection("puestos").onSnapshot(function(s){
+   st.items=s.docs.map(function(d){var x=d.data();x._id=d.id;return x});
+   if(st.view==="list")render();
+  },function(e){console.error(e)});
+ }).catch(function(e){console.error(e)});
+}
+
+function render(){
+ var a=$("#app");
+ if(st.view==="list")a.innerHTML=listHtml();else a.innerHTML=detailHtml();
+ bind();
+}
+function listHtml(){
+ var years={};st.items.forEach(function(p){years[p.anio]=1});
+ var ys=Object.keys(years).sort().reverse();
+ var rows=st.items.filter(function(p){
+  return (!st.anio||String(p.anio)===st.anio)&&(!st.q||(p.nombre+" "+(p.codigo||"")+" "+(p.razon||"")).toLowerCase().indexOf(st.q.toLowerCase())>-1)
+ }).sort(function(a,b){return puntos(b.val||{})-puntos(a.val||{})});
+ var h='<div class="bc">Inicio &gt; <b>Puestos de trabajo</b></div><h1>Puestos de trabajo</h1><div class="bar">'+
+ '<input id="q" placeholder="Buscar puesto, código o razón social" value="'+esc(st.q)+'">'+
+ '<select id="fy" style="max-width:130px"><option value="">Todos los años</option>'+ys.map(function(y){return '<option'+(String(y)===st.anio?' selected':'')+'>'+y+'</option>'}).join("")+'</select>'+
+ '<span class="sp"></span><button class="p" id="new">+ Nuevo puesto</button></div>'+
+ '<div class="panel" style="border-top:1px solid var(--bd);border-radius:8px"><table><tr><th>Año</th><th>Puesto</th><th>Código</th><th>Razón social</th><th>Puntos</th><th>Grupo</th><th>Salario base</th></tr>';
+ if(!rows.length)h+='<tr><td colspan="7" class="mut">Aún no hay puestos. Crea el primero con «Nuevo puesto».</td></tr>';
+ rows.forEach(function(p){var pt=puntos(p.val||{});h+='<tr class="link" data-id="'+p._id+'"><td>'+esc(p.anio)+'</td><td><b>'+esc(p.nombre)+'</b></td><td>'+esc(p.codigo)+'</td><td>'+esc(p.razon)+'</td><td><span class="badge">'+pt+'</span></td><td>'+esc(grupoDe(pt))+'</td><td>'+num((p.retr||{}).base)+'</td></tr>'});
+ return h+'</table></div>';
+}
+
+function detailHtml(){
+ var d=st.draft,h='<div class="bc"><a id="back">Inicio</a> &gt; <a id="back2">Puestos de trabajo</a> &gt; <b>Puesto de trabajo</b></div>';
+ h+='<div class="row"><div class="sm"><label>Año</label><input data-f="anio" type="number" value="'+esc(d.anio)+'"></div>'+
+ '<div style="flex:2 1 220px"><label>Puesto *</label><input data-f="nombre" value="'+esc(d.nombre)+'"></div>'+
+ '<div><label>Código puesto</label><input data-f="codigo" value="'+esc(d.codigo)+'"></div>'+
+ '<div><label>Razón social</label><input data-f="razon" value="'+esc(d.razon)+'"></div>'+
+ '<div><label>Política retributiva</label><select data-f="politica">'+["General","Directivos","Comercial","Convenio"].map(function(o){return '<option'+(o===d.politica?' selected':'')+'>'+o+'</option>'}).join("")+'</select></div></div>';
+ h+='<div class="tabs">'+TABS.map(function(t,i){return '<button class="tab'+(i===st.tab?' on':'')+'" data-t="'+i+'">'+t+'</button>'}).join("")+'</div><div class="panel">'+tabHtml(d)+'</div>';
+ h+='<div class="foot"><button class="p" id="save">Guardar</button><button id="cancel">Volver</button>'+(st.id?'<button class="d" id="del">Eliminar</button>':'')+'<span class="mut" id="msg">'+esc(st.saved)+'</span></div>';
+ return h;
+}
+function tabHtml(d){
+ var i=st.tab,h="";
+ if(i===0){h='<div class="sec"><h3>Misión</h3><div><textarea data-f="mision" placeholder="¿Para qué existe este puesto?">'+esc(d.mision)+'</textarea></div></div><div class="sec"><h3>Funciones</h3><div><textarea data-f="funciones" style="min-height:160px" placeholder="Una función por línea">'+esc(d.funciones)+'</textarea></div></div>'}
+ if(i===1){var p=puntos(d.val);h='<div style="display:flex;gap:20px;align-items:center;margin-bottom:8px"><div><div class="mut">Puntuación total</div><div class="tot" id="tot">'+p+'</div></div><div><div class="mut">Grupo sugerido</div><b id="grp">'+esc(grupoDe(p))+'</b></div></div>';
+  FACTORES.forEach(function(f){h+='<div class="fac"><div><b>'+f.n+'</b> <span class="mut">('+f.w+' %)</span><small>'+f.d+'</small></div><input type="range" min="1" max="5" step="1" data-v="'+f.k+'" value="'+d.val[f.k]+'"><b id="v-'+f.k+'">'+d.val[f.k]+' / 5</b></div>'});
+  h+='<div style="margin-top:12px"><label>Justificación de la valoración</label><textarea data-f="valNota">'+esc(d.valNota)+'</textarea></div>'}
+ if(i===2){h='<div class="row"><div><label>Grupo / banda salarial</label><input data-r="grupo" value="'+esc(d.retr.grupo)+'"></div><div><label>Salario base anual (€)</label><input data-r="base" type="number" value="'+esc(d.retr.base)+'"></div><div><label>Variable anual (€)</label><input data-r="variable" type="number" value="'+esc(d.retr.variable)+'"></div><div><label>Complementos (€)</label><input data-r="complementos" type="number" value="'+esc(d.retr.complementos)+'"></div></div>'+
+  '<p>Retribución total estimada: <b>'+num((+d.retr.base||0)+(+d.retr.variable||0)+(+d.retr.complementos||0))+'</b></p><label>Notas</label><textarea data-r="notas">'+esc(d.retr.notas)+'</textarea>'}
+ if(i===3){h='<table><tr><th>Conocimiento / competencia</th><th>Nivel requerido</th><th></th></tr>';
+  d.conoc.forEach(function(c,n){h+='<tr><td><input data-cn="'+n+'" value="'+esc(c.nombre)+'"></td><td><select data-cl="'+n+'">'+NIVELES.map(function(l){return '<option'+(l===c.nivel?' selected':'')+'>'+l+'</option>'}).join("")+'</select></td><td><button class="d" data-cd="'+n+'">✕</button></td></tr>'});
+  h+='</table><p><button id="addc">+ Añadir conocimiento</button></p>'}
+ if(i===4){h='<div class="row"><div><label>Depende de</label><input data-o="depende" value="'+esc(d.org.depende)+'"></div><div><label>Puestos a su cargo</label><input data-o="supervisa" value="'+esc(d.org.supervisa)+'"></div><div><label>Se relaciona con</label><input data-o="relaciona" value="'+esc(d.org.relaciona)+'"></div></div>';
+  var rep=st.items.filter(function(x){return x._id!==st.id&&d.nombre&&x.org&&x.org.depende&&x.org.depende.toLowerCase()===d.nombre.toLowerCase()});
+  h+='<p class="mut">Puestos que declaran depender de este: '+(rep.length?rep.map(function(x){return esc(x.nombre)}).join(", "):"ninguno")+'</p>'}
+ if(i===5){var same=st.items.filter(function(x){return x.nombre===d.nombre&&d.nombre}).sort(function(a,b){return b.anio-a.anio});
+  h='<p class="mut">Ediciones de este puesto por año.</p><table><tr><th>Año</th><th>Puntos</th><th>Salario base</th></tr>'+same.map(function(x){return '<tr class="link" data-id="'+x._id+'"><td>'+x.anio+(x._id===st.id?' (actual)':'')+'</td><td>'+puntos(x.val||{})+'</td><td>'+num((x.retr||{}).base)+'</td></tr>'}).join("")+'</table>'+
+  (st.id?'<p><button id="dup">Crear edición para '+((+d.anio||0)+1)+'</button></p>':'<p class="mut">Guarda el puesto para poder crear ediciones.</p>')}
+ if(i===6){var a=(d.audit||[]).slice().reverse();h='<table><tr><th>Fecha</th><th>Usuario</th><th>Cambios</th></tr>'+(a.length?a.map(function(x){return '<tr><td>'+new Date(x.t).toLocaleString("es-ES")+'</td><td data-au="'+esc(x.u)+'">'+esc(st.names[x.u]||"…")+'</td><td>'+esc(x.c)+'</td></tr>'}).join(""):'<tr><td colspan="3" class="mut">Sin cambios registrados.</td></tr>')+'</table>';
+  setTimeout(resolveNames,0)}
+ return h;
+}
+function resolveNames(){
+ var ids={};(st.draft.audit||[]).forEach(function(x){if(x.u&&!st.names[x.u])ids[x.u]=1});
+ ids=Object.keys(ids);if(!ids.length||!st.user||!st.user.profiles)return;
+ st.user.profiles(ids).then(function(p){ids.forEach(function(i){st.names[i]=(p[i]&&p[i].name)||"Alguien"});document.querySelectorAll("[data-au]").forEach(function(td){td.textContent=st.names[td.getAttribute("data-au")]||"Alguien"})}).catch(function(){})
+}
+
+function bind(){
+ var q=$("#q");if(q){q.oninput=function(){st.q=q.value;var pos=q.selectionStart;render();var n=$("#q");n.focus();n.setSelectionRange(pos,pos)}}
+ var fy=$("#fy");if(fy)fy.onchange=function(){st.anio=fy.value;render()};
+ var nw=$("#new");if(nw)nw.onclick=function(){open(null)};
+ document.querySelectorAll("tr.link").forEach(function(tr){tr.onclick=function(){open(tr.getAttribute("data-id"))}});
+ if(st.view!=="detail")return;
+ var d=st.draft;
+ $("#back").onclick=$("#back2").onclick=$("#cancel").onclick=function(){st.view="list";render()};
+ document.querySelectorAll("[data-t]").forEach(function(b){b.onclick=function(){st.tab=+b.getAttribute("data-t");render()}});
+ var map={"data-f":function(k,v){d[k]=v},"data-r":function(k,v){d.retr[k]=v},"data-o":function(k,v){d.org[k]=v}};
+ Object.keys(map).forEach(function(at){document.querySelectorAll("["+at+"]").forEach(function(el){el.oninput=function(){map[at](el.getAttribute(at),el.value);if(at==="data-r"&&st.tab===2){}}})});
+ document.querySelectorAll("[data-r][type=number]").forEach(function(el){el.onchange=function(){render()}});
+ document.querySelectorAll("[data-v]").forEach(function(el){el.oninput=function(){var k=el.getAttribute("data-v");d.val[k]=+el.value;$("#v-"+k).textContent=el.value+" / 5";var p=puntos(d.val);$("#tot").textContent=p;$("#grp").textContent=grupoDe(p)}});
+ document.querySelectorAll("[data-cn]").forEach(function(el){el.oninput=function(){d.conoc[+el.getAttribute("data-cn")].nombre=el.value}});
+ document.querySelectorAll("[data-cl]").forEach(function(el){el.onchange=function(){d.conoc[+el.getAttribute("data-cl")].nivel=el.value}});
+ document.querySelectorAll("[data-cd]").forEach(function(el){el.onclick=function(){d.conoc.splice(+el.getAttribute("data-cd"),1);render()}});
+ var ac=$("#addc");if(ac)ac.onclick=function(){d.conoc.push({nombre:"",nivel:"Intermedio"});render()};
+ $("#save").onclick=save;
+ var del=$("#del");if(del)del.onclick=function(){if(confirm("¿Eliminar este puesto para todos?")){st.db.doc("puestos/"+st.id).delete().then(function(){st.view="list";render()}).catch(function(e){alert("No se pudo eliminar: "+(e&&e.message||e))})}};
+ var dup=$("#dup");if(dup)dup.onclick=function(){var c=JSON.parse(JSON.stringify(d));c.anio=(+d.anio||0)+1;c.audit=[];st.db.collection("puestos").add(c).then(function(r){open(r.id)}).catch(function(e){alert("Error: "+(e&&e.message||e))})};
+}
+function open(id){
+ st.id=id;st.tab=0;st.saved="";
+ var src=id?st.items.filter(function(x){return x._id===id})[0]:null;
+ var b=blank(),dr=src?JSON.parse(JSON.stringify(src)):b;delete dr._id;
+ dr.val=Object.assign(b.val,dr.val||{});dr.retr=Object.assign(b.retr,dr.retr||{});dr.org=Object.assign(b.org,dr.org||{});dr.conoc=dr.conoc||[];dr.audit=dr.audit||[];
+ st.draft=dr;st.orig=JSON.stringify(dr);st.view="detail";render();
+}
+function save(){
+ var d=st.draft;
+ if(!d.nombre.trim()){alert("El campo Puesto es obligatorio.");return}
+ var o=JSON.parse(st.orig),ch=[];
+ [["Cabecera",["anio","nombre","codigo","razon","politica"]],["Descripción",["mision","funciones"]],["Valoración",["val","valNota"]],["Retribución",["retr"]],["Conocimientos",["conoc"]],["Organigrama",["org"]]].forEach(function(g){
+  if(g[1].some(function(k){return JSON.stringify(d[k])!==JSON.stringify(o[k])}))ch.push(g[0])});
+ d.audit=(d.audit||[]).concat([{t:Date.now(),u:st.uid||"",c:st.id?(ch.join(", ")||"Sin cambios"):"Creación del puesto"}]).slice(-100);
+ var ref=st.id?st.db.doc("puestos/"+st.id):st.db.collection("puestos").doc();
+ var body=JSON.parse(JSON.stringify(d));
+ $("#msg").textContent="Guardando…";
+ ref.set(body).then(function(){st.id=ref.id;st.orig=JSON.stringify(d);st.saved="Guardado ✓";var m=$("#msg");if(m){m.textContent=st.saved;m.className="ok"}})
+ .catch(function(e){var m=$("#msg");if(m)m.textContent="No se pudo guardar: "+((e&&e.message)||e)});
+}
+init();
+</script>
+</body>
+</html>
